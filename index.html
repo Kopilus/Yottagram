@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<title>Yottagram</title>
+
+<style>
+
+body{
+margin:0;
+font-family:Arial;
+background:#111;
+color:white;
+}
+
+/* LOGIN */
+
+#login{
+display:flex;
+flex-direction:column;
+justify-content:center;
+align-items:center;
+height:100vh;
+}
+
+input{
+padding:10px;
+margin:5px;
+border-radius:8px;
+border:none;
+}
+
+button{
+padding:10px 15px;
+border:none;
+border-radius:8px;
+background:#ff2f6d;
+color:white;
+cursor:pointer;
+}
+
+/* APP */
+
+#app{
+display:none;
+height:100vh;
+}
+
+header{
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:10px;
+background:#222;
+}
+
+header img{
+border-radius:50%;
+width:40px;
+height:40px;
+object-fit:cover;
+margin-left:10px;
+}
+
+.container{
+display:flex;
+height:calc(100vh - 60px);
+}
+
+/* FEED */
+
+#feed{
+flex:2;
+text-align:center;
+padding:20px;
+}
+
+.post{
+max-width:80%;
+border-radius:10px;
+}
+
+/* PROFILE */
+
+#profile{
+flex:1;
+background:#1b1b1b;
+padding:20px;
+overflow:auto;
+display:none;
+}
+
+.avatar{
+width:80px;
+height:80px;
+border-radius:50%;
+object-fit:cover;
+}
+
+.postMini{
+width:100%;
+margin-top:10px;
+border-radius:10px;
+}
+
+/* COMMENTS */
+
+.comment{
+background:#333;
+margin:4px;
+padding:5px;
+border-radius:5px;
+text-align:left;
+}
+
+/* ARROWS */
+
+.arrow{
+font-size:30px;
+cursor:pointer;
+margin:10px;
+}
+
+</style>
+</head>
+
+<body>
+
+<!-- LOGIN -->
+
+<div id="login">
+
+<h1>Yottagram</h1>
+
+<input id="nick" placeholder="Nick">
+<input id="pass" type="password" placeholder="Hasło">
+
+<button id="loginBtn" onclick="login()">Zaloguj / Stwórz konto</button>
+
+</div>
+
+<!-- APP -->
+
+<div id="app">
+
+<header>
+
+<h2>Yottagram</h2>
+
+<div>
+
+<input type="file" id="upload" accept="image/*">
+
+<button id="profileBtn" onclick="toggleProfile()">Profil</button>
+
+<button onclick="changeLang()">🌍</button>
+
+<img id="topAvatar">
+
+</div>
+
+</header>
+
+<div class="container">
+
+<!-- FEED -->
+
+<div id="feed">
+
+<div class="arrow" onclick="prev()">⬅</div>
+
+<img id="image" class="post">
+
+<div class="arrow" onclick="next()">➡</div>
+
+<p onclick="like()">❤️ <span id="likes">0</span></p>
+
+<div id="comments"></div>
+
+<input id="commentText" placeholder="Komentarz">
+
+<button onclick="addComment()">OK</button>
+
+</div>
+
+<!-- PROFILE -->
+
+<div id="profile">
+
+<h3 id="profileNick"></h3>
+
+<input type="file" id="avatarUpload">
+
+<br><br>
+
+<img id="avatar" class="avatar">
+
+<h4 id="myPostsTitle">Twoje posty</h4>
+
+<div id="myPosts"></div>
+
+</div>
+
+</div>
+
+</div>
+
+<script>
+
+/* LANGUAGES */
+
+let lang="pl"
+
+let t={
+
+pl:{
+login:"Zaloguj / Stwórz konto",
+profile:"Profil",
+comment:"Komentarz",
+nick:"Nick",
+pass:"Hasło",
+myposts:"Twoje posty"
+},
+
+en:{
+login:"Login / Create account",
+profile:"Profile",
+comment:"Comment",
+nick:"Username",
+pass:"Password",
+myposts:"Your posts"
+}
+
+}
+
+function changeLang(){
+
+lang = lang==="pl" ? "en":"pl"
+
+applyLang()
+
+}
+
+function applyLang(){
+
+document.getElementById("loginBtn").innerText=t[lang].login
+document.getElementById("profileBtn").innerText=t[lang].profile
+document.getElementById("nick").placeholder=t[lang].nick
+document.getElementById("pass").placeholder=t[lang].pass
+document.getElementById("commentText").placeholder=t[lang].comment
+document.getElementById("myPostsTitle").innerText=t[lang].myposts
+
+}
+
+/* DATA */
+
+let posts=JSON.parse(localStorage.getItem("y_posts"))||[]
+let users=JSON.parse(localStorage.getItem("y_users"))||{}
+
+let current=0
+let user=null
+
+/* LOGIN */
+
+function login(){
+
+let nick=document.getElementById("nick").value
+let pass=document.getElementById("pass").value
+
+if(!nick||!pass)return alert("Fill data")
+
+if(!users[nick]){
+
+users[nick]={pass:pass,avatar:null,posts:[]}
+
+}
+
+if(users[nick].pass!==pass){
+
+alert("Wrong password")
+
+return
+
+}
+
+user=nick
+
+document.getElementById("login").style.display="none"
+document.getElementById("app").style.display="block"
+
+document.getElementById("profileNick").innerText=nick
+
+loadAvatar()
+renderProfile()
+loadPost()
+
+}
+
+/* PROFILE */
+
+function toggleProfile(){
+
+let p=document.getElementById("profile")
+
+p.style.display=p.style.display==="none"?"block":"none"
+
+}
+
+/* AVATAR */
+
+document.getElementById("avatarUpload").addEventListener("change",function(){
+
+let file=this.files[0]
+
+let reader=new FileReader()
+
+reader.onload=function(){
+
+users[user].avatar=reader.result
+
+save()
+
+loadAvatar()
+
+}
+
+reader.readAsDataURL(file)
+
+})
+
+function loadAvatar(){
+
+let av=users[user].avatar
+
+if(av){
+
+document.getElementById("avatar").src=av
+document.getElementById("topAvatar").src=av
+
+}
+
+}
+
+/* ADD POST */
+
+document.getElementById("upload").addEventListener("change",function(){
+
+let file=this.files[0]
+
+let reader=new FileReader()
+
+reader.onload=function(){
+
+let post={
+
+img:reader.result,
+likes:0,
+comments:[],
+author:user
+
+}
+
+posts.push(post)
+
+users[user].posts.push(reader.result)
+
+save()
+
+current=posts.length-1
+
+loadPost()
+renderProfile()
+
+}
+
+reader.readAsDataURL(file)
+
+})
+
+/* POST */
+
+function loadPost(){
+
+if(posts.length===0)return
+
+let p=posts[current]
+
+document.getElementById("image").src=p.img
+document.getElementById("likes").innerText=p.likes
+
+let cdiv=document.getElementById("comments")
+
+cdiv.innerHTML=""
+
+p.comments.forEach(c=>{
+
+let d=document.createElement("div")
+
+d.className="comment"
+
+d.innerText=c
+
+cdiv.appendChild(d)
+
+})
+
+}
+
+/* ARROWS */
+
+function next(){
+
+if(posts.length===0)return
+
+current++
+
+if(current>=posts.length)current=0
+
+loadPost()
+
+}
+
+function prev(){
+
+if(posts.length===0)return
+
+current--
+
+if(current<0)current=posts.length-1
+
+loadPost()
+
+}
+
+/* LIKE */
+
+function like(){
+
+posts[current].likes++
+
+save()
+
+loadPost()
+
+}
+
+/* COMMENT */
+
+function addComment(){
+
+let text=document.getElementById("commentText").value
+
+if(!text)return
+
+posts[current].comments.push("["+user+"] "+text)
+
+document.getElementById("commentText").value=""
+
+save()
+
+loadPost()
+
+}
+
+/* PROFILE POSTS */
+
+function renderProfile(){
+
+let div=document.getElementById("myPosts")
+
+div.innerHTML=""
+
+users[user].posts.forEach(p=>{
+
+let img=document.createElement("img")
+
+img.src=p
+
+img.className="postMini"
+
+div.appendChild(img)
+
+})
+
+}
+
+/* SAVE */
+
+function save(){
+
+localStorage.setItem("y_posts",JSON.stringify(posts))
+localStorage.setItem("y_users",JSON.stringify(users))
+
+}
+
+</script>
+
+</body>
+</html>
