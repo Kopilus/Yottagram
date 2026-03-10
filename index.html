@@ -9,7 +9,7 @@
 body{
 margin:0;
 font-family:Arial;
-background:#111;
+background:black;
 color:white;
 }
 
@@ -21,11 +21,11 @@ flex-direction:column;
 justify-content:center;
 align-items:center;
 height:100vh;
+gap:10px;
 }
 
 input{
 padding:10px;
-margin:5px;
 border-radius:8px;
 border:none;
 }
@@ -39,86 +39,76 @@ color:white;
 cursor:pointer;
 }
 
-/* APP */
-
-#app{
-display:none;
-height:100vh;
-}
-
-header{
-display:flex;
-justify-content:space-between;
-align-items:center;
-padding:10px;
-background:#222;
-}
-
-header img{
-border-radius:50%;
-width:40px;
-height:40px;
-object-fit:cover;
-margin-left:10px;
-}
-
-.container{
-display:flex;
-height:calc(100vh - 60px);
-}
-
 /* FEED */
 
 #feed{
-flex:2;
-text-align:center;
-padding:20px;
-}
-
-.post{
-max-width:80%;
-border-radius:10px;
-}
-
-/* PROFILE */
-
-#profile{
-flex:1;
-background:#1b1b1b;
-padding:20px;
-overflow:auto;
+height:100vh;
+overflow-y:scroll;
+scroll-snap-type:y mandatory;
 display:none;
 }
 
+.post{
+height:100vh;
+scroll-snap-align:start;
+display:flex;
+justify-content:center;
+align-items:center;
+position:relative;
+}
+
+.media{
+max-width:100%;
+max-height:100%;
+}
+
+/* RIGHT BAR */
+
+.right{
+position:absolute;
+right:20px;
+bottom:120px;
+display:flex;
+flex-direction:column;
+gap:20px;
+font-size:28px;
+}
+
+.right button{
+background:none;
+border:none;
+color:white;
+font-size:28px;
+cursor:pointer;
+}
+
+/* BOTTOM */
+
+.bottom{
+position:absolute;
+bottom:30px;
+left:20px;
+display:flex;
+align-items:center;
+gap:10px;
+}
+
 .avatar{
-width:80px;
-height:80px;
+width:45px;
+height:45px;
 border-radius:50%;
 object-fit:cover;
 }
 
-.postMini{
-width:100%;
-margin-top:10px;
-border-radius:10px;
-}
+/* TOP BAR */
 
-/* COMMENTS */
-
-.comment{
-background:#333;
-margin:4px;
-padding:5px;
-border-radius:5px;
-text-align:left;
-}
-
-/* ARROWS */
-
-.arrow{
-font-size:30px;
-cursor:pointer;
-margin:10px;
+#top{
+position:fixed;
+top:10px;
+left:50%;
+transform:translateX(-50%);
+z-index:10;
+display:none;
 }
 
 </style>
@@ -135,129 +125,30 @@ margin:10px;
 <input id="nick" placeholder="Nick">
 <input id="pass" type="password" placeholder="Hasło">
 
-<button id="loginBtn" onclick="login()">Zaloguj / Stwórz konto</button>
+<button onclick="login()">Zaloguj / Stwórz konto</button>
 
 </div>
 
-<!-- APP -->
+<!-- TOP -->
 
-<div id="app">
+<div id="top">
 
-<header>
-
-<h2>Yottagram</h2>
-
-<div>
-
-<input type="file" id="upload" accept="image/*">
-
-<button id="profileBtn" onclick="toggleProfile()">Profil</button>
-
-<button onclick="changeLang()">🌍</button>
-
-<img id="topAvatar">
+<input type="file" id="upload" accept="video/*,image/*">
+<input type="file" id="avatarUpload" accept="image/*">
 
 </div>
-
-</header>
-
-<div class="container">
 
 <!-- FEED -->
 
-<div id="feed">
-
-<div class="arrow" onclick="prev()">⬅</div>
-
-<img id="image" class="post">
-
-<div class="arrow" onclick="next()">➡</div>
-
-<p onclick="like()">❤️ <span id="likes">0</span></p>
-
-<div id="comments"></div>
-
-<input id="commentText" placeholder="Komentarz">
-
-<button onclick="addComment()">OK</button>
-
-</div>
-
-<!-- PROFILE -->
-
-<div id="profile">
-
-<h3 id="profileNick"></h3>
-
-<input type="file" id="avatarUpload">
-
-<br><br>
-
-<img id="avatar" class="avatar">
-
-<h4 id="myPostsTitle">Twoje posty</h4>
-
-<div id="myPosts"></div>
-
-</div>
-
-</div>
-
-</div>
+<div id="feed"></div>
 
 <script>
 
-/* LANGUAGES */
-
-let lang="pl"
-
-let t={
-
-pl:{
-login:"Zaloguj / Stwórz konto",
-profile:"Profil",
-comment:"Komentarz",
-nick:"Nick",
-pass:"Hasło",
-myposts:"Twoje posty"
-},
-
-en:{
-login:"Login / Create account",
-profile:"Profile",
-comment:"Comment",
-nick:"Username",
-pass:"Password",
-myposts:"Your posts"
-}
-
-}
-
-function changeLang(){
-
-lang = lang==="pl" ? "en":"pl"
-
-applyLang()
-
-}
-
-function applyLang(){
-
-document.getElementById("loginBtn").innerText=t[lang].login
-document.getElementById("profileBtn").innerText=t[lang].profile
-document.getElementById("nick").placeholder=t[lang].nick
-document.getElementById("pass").placeholder=t[lang].pass
-document.getElementById("commentText").placeholder=t[lang].comment
-document.getElementById("myPostsTitle").innerText=t[lang].myposts
-
-}
-
 /* DATA */
 
-let posts=JSON.parse(localStorage.getItem("y_posts"))||[]
 let users=JSON.parse(localStorage.getItem("y_users"))||{}
+let posts=JSON.parse(localStorage.getItem("y_posts"))||{}
 
-let current=0
 let user=null
 
 /* LOGIN */
@@ -267,17 +158,15 @@ function login(){
 let nick=document.getElementById("nick").value
 let pass=document.getElementById("pass").value
 
-if(!nick||!pass)return alert("Fill data")
-
 if(!users[nick]){
 
-users[nick]={pass:pass,avatar:null,posts:[]}
+users[nick]={pass:pass,avatar:null}
 
 }
 
 if(users[nick].pass!==pass){
 
-alert("Wrong password")
+alert("Złe hasło")
 
 return
 
@@ -286,25 +175,159 @@ return
 user=nick
 
 document.getElementById("login").style.display="none"
-document.getElementById("app").style.display="block"
+document.getElementById("feed").style.display="block"
+document.getElementById("top").style.display="block"
 
-document.getElementById("profileNick").innerText=nick
+render()
 
-loadAvatar()
-renderProfile()
-loadPost()
+save()
+
+}
+
+/* RENDER */
+
+function render(){
+
+let feed=document.getElementById("feed")
+
+feed.innerHTML=""
+
+Object.values(posts).forEach(p=>{
+
+let post=document.createElement("div")
+post.className="post"
+
+let media
+
+if(p.type==="video"){
+
+media=document.createElement("video")
+media.src=p.src
+media.autoplay=true
+media.loop=true
+media.muted=true
+media.className="media"
+
+}else{
+
+media=document.createElement("img")
+media.src=p.src
+media.className="media"
 
 }
 
-/* PROFILE */
+post.appendChild(media)
 
-function toggleProfile(){
+/* RIGHT */
 
-let p=document.getElementById("profile")
+let right=document.createElement("div")
+right.className="right"
 
-p.style.display=p.style.display==="none"?"block":"none"
+let like=document.createElement("button")
+
+like.innerText="❤️ "+p.likes
+
+like.onclick=()=>{
+
+p.likes++
+
+save()
+
+render()
 
 }
+
+let comment=document.createElement("button")
+
+comment.innerText="💬"
+
+comment.onclick=()=>{
+
+let text=prompt("Komentarz")
+
+if(text){
+
+p.comments.push("["+user+"] "+text)
+
+save()
+
+}
+
+}
+
+let share=document.createElement("button")
+
+share.innerText="↗"
+
+share.onclick=()=>{
+
+navigator.clipboard.writeText(location.href)
+
+alert("Link skopiowany!")
+
+}
+
+right.appendChild(like)
+right.appendChild(comment)
+right.appendChild(share)
+
+post.appendChild(right)
+
+/* BOTTOM */
+
+let bottom=document.createElement("div")
+bottom.className="bottom"
+
+let avatar=document.createElement("img")
+avatar.className="avatar"
+avatar.src=users[p.user].avatar || "https://i.pravatar.cc/100"
+
+let info=document.createElement("div")
+
+info.innerHTML="<b>@"+p.user+"</b><br>🎵 original sound"
+
+bottom.appendChild(avatar)
+bottom.appendChild(info)
+
+post.appendChild(bottom)
+
+feed.appendChild(post)
+
+})
+
+}
+
+/* UPLOAD POST */
+
+document.getElementById("upload").addEventListener("change",function(){
+
+let file=this.files[0]
+
+let reader=new FileReader()
+
+reader.onload=function(){
+
+let type=file.type.startsWith("video")?"video":"image"
+
+posts[Date.now()]={
+
+src:reader.result,
+type:type,
+likes:0,
+comments:[],
+user:user
+
+}
+
+save()
+
+render()
+
+}
+
+reader.readAsDataURL(file)
+
+})
 
 /* AVATAR */
 
@@ -320,176 +343,20 @@ users[user].avatar=reader.result
 
 save()
 
-loadAvatar()
+render()
 
 }
 
 reader.readAsDataURL(file)
 
 })
-
-function loadAvatar(){
-
-let av=users[user].avatar
-
-if(av){
-
-document.getElementById("avatar").src=av
-document.getElementById("topAvatar").src=av
-
-}
-
-}
-
-/* ADD POST */
-
-document.getElementById("upload").addEventListener("change",function(){
-
-let file=this.files[0]
-
-let reader=new FileReader()
-
-reader.onload=function(){
-
-let post={
-
-img:reader.result,
-likes:0,
-comments:[],
-author:user
-
-}
-
-posts.push(post)
-
-users[user].posts.push(reader.result)
-
-save()
-
-current=posts.length-1
-
-loadPost()
-renderProfile()
-
-}
-
-reader.readAsDataURL(file)
-
-})
-
-/* POST */
-
-function loadPost(){
-
-if(posts.length===0)return
-
-let p=posts[current]
-
-document.getElementById("image").src=p.img
-document.getElementById("likes").innerText=p.likes
-
-let cdiv=document.getElementById("comments")
-
-cdiv.innerHTML=""
-
-p.comments.forEach(c=>{
-
-let d=document.createElement("div")
-
-d.className="comment"
-
-d.innerText=c
-
-cdiv.appendChild(d)
-
-})
-
-}
-
-/* ARROWS */
-
-function next(){
-
-if(posts.length===0)return
-
-current++
-
-if(current>=posts.length)current=0
-
-loadPost()
-
-}
-
-function prev(){
-
-if(posts.length===0)return
-
-current--
-
-if(current<0)current=posts.length-1
-
-loadPost()
-
-}
-
-/* LIKE */
-
-function like(){
-
-posts[current].likes++
-
-save()
-
-loadPost()
-
-}
-
-/* COMMENT */
-
-function addComment(){
-
-let text=document.getElementById("commentText").value
-
-if(!text)return
-
-posts[current].comments.push("["+user+"] "+text)
-
-document.getElementById("commentText").value=""
-
-save()
-
-loadPost()
-
-}
-
-/* PROFILE POSTS */
-
-function renderProfile(){
-
-let div=document.getElementById("myPosts")
-
-div.innerHTML=""
-
-users[user].posts.forEach(p=>{
-
-let img=document.createElement("img")
-
-img.src=p
-
-img.className="postMini"
-
-div.appendChild(img)
-
-})
-
-}
 
 /* SAVE */
 
 function save(){
 
-localStorage.setItem("y_posts",JSON.stringify(posts))
 localStorage.setItem("y_users",JSON.stringify(users))
+localStorage.setItem("y_posts",JSON.stringify(posts))
 
 }
 
