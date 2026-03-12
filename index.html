@@ -4,12 +4,14 @@
 <meta charset="UTF-8">
 <title>Yottagram</title>
 
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
 <style>
 
 body{
 margin:0;
 font-family:Arial;
-background:black;
+background:#111;
 color:white;
 }
 
@@ -24,7 +26,7 @@ height:100vh;
 gap:10px;
 }
 
-input{
+input,textarea{
 padding:10px;
 border-radius:8px;
 border:none;
@@ -39,76 +41,112 @@ color:white;
 cursor:pointer;
 }
 
-/* FEED */
+/* APP */
 
-#feed{
-height:100vh;
-overflow-y:scroll;
-scroll-snap-type:y mandatory;
+#app{
 display:none;
 }
 
-.post{
-height:100vh;
-scroll-snap-align:start;
+header{
 display:flex;
-justify-content:center;
+justify-content:space-between;
 align-items:center;
-position:relative;
+padding:10px;
+background:#222;
 }
 
-.media{
-max-width:100%;
-max-height:100%;
-}
-
-/* RIGHT BAR */
-
-.right{
-position:absolute;
-right:20px;
-bottom:120px;
-display:flex;
-flex-direction:column;
-gap:20px;
-font-size:28px;
-}
-
-.right button{
-background:none;
-border:none;
-color:white;
-font-size:28px;
-cursor:pointer;
-}
-
-/* BOTTOM */
-
-.bottom{
-position:absolute;
-bottom:30px;
-left:20px;
-display:flex;
-align-items:center;
-gap:10px;
-}
-
-.avatar{
-width:45px;
-height:45px;
+header img{
+width:40px;
+height:40px;
 border-radius:50%;
 object-fit:cover;
 }
 
-/* TOP BAR */
+/* FEED */
 
-#top{
+#feed{
+text-align:center;
+padding:10px;
+}
+
+.postMedia{
+width:100%;
+height:60vh;
+object-fit:contain;
+background:black;
+border-radius:10px;
+}
+
+/* ARROWS */
+
+.arrow{
+position:absolute;
+top:50%;
+transform:translateY(-50%);
+font-size:40px;
+cursor:pointer;
+user-select:none;
+}
+
+#leftArrow{
+left:10px;
+}
+
+#rightArrow{
+right:10px;
+}
+
+/* PROFILE */
+
+#profile{
 position:fixed;
-top:10px;
-left:50%;
-transform:translateX(-50%);
-z-index:10;
+top:0;
+right:0;
+width:300px;
+height:100%;
+background:#1b1b1b;
+padding:20px;
 display:none;
+overflow:auto;
+}
+
+.avatar{
+width:80px;
+height:80px;
+border-radius:50%;
+object-fit:cover;
+}
+
+/* COMMENTS */
+
+.comment{
+display:flex;
+align-items:center;
+gap:8px;
+background:#333;
+margin:5px;
+padding:5px;
+border-radius:5px;
+}
+
+.comment img{
+width:25px;
+height:25px;
+border-radius:50%;
+}
+
+/* MOBILE */
+
+@media (max-width:600px){
+
+#profile{
+width:100%;
+}
+
+.postMedia{
+max-width:100%;
+}
+
 }
 
 </style>
@@ -129,29 +167,76 @@ display:none;
 
 </div>
 
-<!-- TOP -->
+<!-- APP -->
 
-<div id="top">
+<div id="app">
 
-<input type="file" id="upload" accept="video/*,image/*">
-<input type="file" id="avatarUpload" accept="image/*">
+<header>
+
+<h2>Yottagram</h2>
+
+<div>
+
+<button onclick="document.getElementById('upload').click()">Wstaw post</button>
+<input type="file" id="upload" accept="image/*,video/*" hidden>
+
+<button onclick="toggleProfile()">Profil</button>
+
+<img id="topAvatar">
 
 </div>
 
-<!-- FEED -->
+</header>
 
-<div id="feed"></div>
+<div id="feed">
+
+<div id="leftArrow" class="arrow" onclick="prev()">⬅</div>
+
+<div id="mediaContainer"></div>
+
+<div id="rightArrow" class="arrow" onclick="next()">➡</div>
+
+<p onclick="like()">❤️ <span id="likes">0</span></p>
+
+<p id="postDesc"></p>
+
+<div id="comments"></div>
+
+<input id="commentText" placeholder="Komentarz">
+<button onclick="addComment()">OK</button>
+
+</div>
+
+</div>
+
+<!-- PROFILE -->
+
+<div id="profile">
+
+<button onclick="toggleProfile()">Zamknij</button>
+
+<h3 id="profileNick"></h3>
+
+<button onclick="document.getElementById('avatarUpload').click()">Ustaw zdjęcie profilowe</button>
+<input type="file" id="avatarUpload" accept="image/*" hidden>
+
+<br><br>
+
+<img id="avatar" class="avatar">
+
+<h4>Twoje posty</h4>
+
+<div id="myPosts"></div>
+
+</div>
 
 <script>
 
-/* DATA */
-
+let posts=JSON.parse(localStorage.getItem("y_posts"))||[]
 let users=JSON.parse(localStorage.getItem("y_users"))||{}
-let posts=JSON.parse(localStorage.getItem("y_posts"))||{}
 
+let current=0
 let user=null
-
-/* LOGIN */
 
 function login(){
 
@@ -159,182 +244,42 @@ let nick=document.getElementById("nick").value
 let pass=document.getElementById("pass").value
 
 if(!users[nick]){
-
-users[nick]={pass:pass,avatar:null}
-
+users[nick]={pass:pass,avatar:null,posts:[]}
 }
 
 if(users[nick].pass!==pass){
-
 alert("Złe hasło")
-
 return
-
 }
 
 user=nick
 
 document.getElementById("login").style.display="none"
-document.getElementById("feed").style.display="block"
-document.getElementById("top").style.display="block"
+document.getElementById("app").style.display="block"
 
-render()
+document.getElementById("profileNick").innerText=nick
 
-save()
-
-}
-
-/* RENDER */
-
-function render(){
-
-let feed=document.getElementById("feed")
-
-feed.innerHTML=""
-
-Object.values(posts).forEach(p=>{
-
-let post=document.createElement("div")
-post.className="post"
-
-let media
-
-if(p.type==="video"){
-
-media=document.createElement("video")
-media.src=p.src
-media.autoplay=true
-media.loop=true
-media.muted=true
-media.className="media"
-
-}else{
-
-media=document.createElement("img")
-media.src=p.src
-media.className="media"
+loadAvatar()
+renderProfile()
+loadPost()
 
 }
 
-post.appendChild(media)
+/* PROFILE */
 
-/* RIGHT */
+function toggleProfile(){
 
-let right=document.createElement("div")
-right.className="right"
+let p=document.getElementById("profile")
 
-let like=document.createElement("button")
-
-like.innerText="❤️ "+p.likes
-
-like.onclick=()=>{
-
-p.likes++
-
-save()
-
-render()
+p.style.display=p.style.display==="none"?"block":"none"
 
 }
-
-let comment=document.createElement("button")
-
-comment.innerText="💬"
-
-comment.onclick=()=>{
-
-let text=prompt("Komentarz")
-
-if(text){
-
-p.comments.push("["+user+"] "+text)
-
-save()
-
-}
-
-}
-
-let share=document.createElement("button")
-
-share.innerText="↗"
-
-share.onclick=()=>{
-
-navigator.clipboard.writeText(location.href)
-
-alert("Link skopiowany!")
-
-}
-
-right.appendChild(like)
-right.appendChild(comment)
-right.appendChild(share)
-
-post.appendChild(right)
-
-/* BOTTOM */
-
-let bottom=document.createElement("div")
-bottom.className="bottom"
-
-let avatar=document.createElement("img")
-avatar.className="avatar"
-avatar.src=users[p.user].avatar || "https://i.pravatar.cc/100"
-
-let info=document.createElement("div")
-
-info.innerHTML="<b>@"+p.user+"</b><br>🎵 original sound"
-
-bottom.appendChild(avatar)
-bottom.appendChild(info)
-
-post.appendChild(bottom)
-
-feed.appendChild(post)
-
-})
-
-}
-
-/* UPLOAD POST */
-
-document.getElementById("upload").addEventListener("change",function(){
-
-let file=this.files[0]
-
-let reader=new FileReader()
-
-reader.onload=function(){
-
-let type=file.type.startsWith("video")?"video":"image"
-
-posts[Date.now()]={
-
-src:reader.result,
-type:type,
-likes:0,
-comments:[],
-user:user
-
-}
-
-save()
-
-render()
-
-}
-
-reader.readAsDataURL(file)
-
-})
 
 /* AVATAR */
 
 document.getElementById("avatarUpload").addEventListener("change",function(){
 
 let file=this.files[0]
-
 let reader=new FileReader()
 
 reader.onload=function(){
@@ -342,8 +287,7 @@ reader.onload=function(){
 users[user].avatar=reader.result
 
 save()
-
-render()
+loadAvatar()
 
 }
 
@@ -351,12 +295,199 @@ reader.readAsDataURL(file)
 
 })
 
+function loadAvatar(){
+
+let av=users[user].avatar
+
+if(av){
+
+document.getElementById("avatar").src=av
+document.getElementById("topAvatar").src=av
+
+}
+
+}
+
+/* ADD POST */
+
+document.getElementById("upload").addEventListener("change",function(){
+
+let file=this.files[0]
+
+let desc=prompt("Opis posta + hasztagi")
+
+let reader=new FileReader()
+
+reader.onload=function(){
+
+let type=file.type.startsWith("video")?"video":"image"
+
+let post={
+
+src:reader.result,
+type:type,
+likes:0,
+likedBy:[],
+desc:desc||"",
+comments:[],
+author:user
+
+}
+
+posts.push(post)
+users[user].posts.push(reader.result)
+
+save()
+
+current=posts.length-1
+
+loadPost()
+renderProfile()
+
+}
+
+reader.readAsDataURL(file)
+
+})
+
+/* LOAD POST */
+
+function loadPost(){
+
+if(posts.length===0)return
+
+let p=posts[current]
+
+let container=document.getElementById("mediaContainer")
+
+container.innerHTML=""
+
+let media
+
+if(p.type==="video"){
+
+media=document.createElement("video")
+media.src=p.src
+media.controls=true
+
+}else{
+
+media=document.createElement("img")
+media.src=p.src
+
+}
+
+media.className="postMedia"
+
+container.appendChild(media)
+
+document.getElementById("likes").innerText=p.likes
+document.getElementById("postDesc").innerText=p.desc
+
+let cdiv=document.getElementById("comments")
+cdiv.innerHTML=""
+
+p.comments.forEach(c=>{
+
+let d=document.createElement("div")
+d.className="comment"
+
+let av=document.createElement("img")
+av.src=users[c.user]?.avatar||""
+
+let text=document.createElement("span")
+text.innerText="["+c.user+"] "+c.text
+
+d.appendChild(av)
+d.appendChild(text)
+
+cdiv.appendChild(d)
+
+})
+
+}
+
+/* ARROWS */
+
+function next(){
+
+current++
+if(current>=posts.length)current=0
+
+loadPost()
+
+}
+
+function prev(){
+
+current--
+if(current<0)current=posts.length-1
+
+loadPost()
+
+}
+
+/* LIKE */
+
+function like(){
+
+let p=posts[current]
+
+if(p.likedBy.includes(user))return
+
+p.likes++
+p.likedBy.push(user)
+
+save()
+loadPost()
+
+}
+
+/* COMMENT */
+
+function addComment(){
+
+let text=document.getElementById("commentText").value
+
+if(!text)return
+
+posts[current].comments.push({user:user,text:text})
+
+document.getElementById("commentText").value=""
+
+save()
+loadPost()
+
+}
+
+/* PROFILE POSTS */
+
+function renderProfile(){
+
+let div=document.getElementById("myPosts")
+
+div.innerHTML=""
+
+users[user].posts.forEach(p=>{
+
+let img=document.createElement("img")
+
+img.src=p
+img.style.width="100%"
+img.style.marginTop="10px"
+
+div.appendChild(img)
+
+})
+
+}
+
 /* SAVE */
 
 function save(){
 
-localStorage.setItem("y_users",JSON.stringify(users))
 localStorage.setItem("y_posts",JSON.stringify(posts))
+localStorage.setItem("y_users",JSON.stringify(users))
 
 }
 
